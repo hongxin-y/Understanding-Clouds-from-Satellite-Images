@@ -6,8 +6,8 @@ import numpy as np
 def getData():
     trainData = pd.read_csv("./train.csv")
 
-    # n = trainData.shape[0]
-    n = 24
+    n = trainData.shape[0]
+    # n = 24
     print(n)
     Fish = []
     Flower = []
