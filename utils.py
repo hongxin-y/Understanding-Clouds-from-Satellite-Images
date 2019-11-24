@@ -1,13 +1,13 @@
-import cv2
+from PIL import Image as loadImage
 import pandas as pd
 import numpy as np
-
+from torch.utils.data import Dataset
 
 def getData():
     trainData = pd.read_csv("./train.csv")
 
     n = trainData.shape[0]
-    # n = 24
+    # n = 42
     print(n)
     Fish = []
     Flower = []
@@ -21,7 +21,7 @@ def getData():
             print(i)
         filePath = trainData.iloc[i, 0]
         mask = trainData.iloc[i, 1]
-        newMask = np.zeros((1400, 2100))
+        newMask = np.zeros((1400, 2100, 1))
         if pd.isnull(mask) == False:
             if i < n-1 and "_" not in trainData.iloc[i+1, 0]:
                 mask = mask + trainData.iloc[i+1, 0]
@@ -37,7 +37,7 @@ def getData():
                 for k in range(maskRange):
                     xIndex = (start + k - 1) % 1400
                     yIndex = (start + k - 1) // 1400
-                    newMask[xIndex][yIndex] = 1
+                    newMask[xIndex][yIndex][0] = 1
                 lastPixels = len(pixels[j])
 
         # if "00dec6a.jpg_Sugar" in filePath:
@@ -50,21 +50,53 @@ def getData():
 
         if "Fish" in filePath:
             fileName = filePath.split("_")[0]
-            image = cv2.imread("./train_images/{}".format(fileName))
-            Image.append(image)
-            Fish.append(newMask)
-        if "Flower" in filePath:
+            try:
+                image = loadImage.open("./train_images/{}".format(fileName))
+                # image = cv2.imread("./train_images/{}".format(fileName))
+                Image.append(np.array(image))
+                Fish.append(newMask)
+            except:
+                while i < n and ("_" not in trainData.iloc[i, 0] or fileName in trainData.iloc[i, 0]):
+                    i += 1
+                i -= 1
+
+        elif "Flower" in filePath:
             Flower.append(newMask)
-        if "Gravel" in filePath:
+        elif "Gravel" in filePath:
             Gravel.append(newMask)
-        if "Sugar" in filePath:
+        elif "Sugar" in filePath:
             Sugar.append(newMask)
 
         i += 1
 
     # Image: 1400*2100*3 (0-255, uint8 注意不要溢出)
-    # Fish, Flower, Gravel, Sugar: 1400*2100 (0为空, 1为mask)
-    return Image, Fish, Flower, Gravel, Sugar
+    # Fish, Flower, Gravel, Sugar: 1400*2100*1 (0为空, 1为mask)
+    return np.array(Image), \
+           np.array(Fish), \
+           np.array(Flower), \
+           np.array(Gravel), \
+           np.array(Sugar)
+
+
+# 配合DataLoader生成
+class ImageDataset(Dataset):
+    def __init__(self, Image, Mask, transform=None, target_transform=None):
+        self.image = Image
+        self.mask = Mask
+        self.transform = transform
+        self.target_transform = target_transform
+
+    def __getitem__(self, index):
+        img_x = self.image[index]
+        img_y = self.mask[index]
+        if self.transform is not None:
+            img_x = self.transform(img_x)
+        if self.target_transform is not None:
+            img_y = self.target_transform(img_y)
+        return img_x.float(), img_y.float()
+
+    def __len__(self):
+        return len(self.mask)
 
 
 if __name__ == "__main__":
