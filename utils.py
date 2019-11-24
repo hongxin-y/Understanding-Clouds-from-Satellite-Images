@@ -4,7 +4,7 @@ import numpy as np
 
 
 def getData():
-    trainData = pd.read_csv("./train2.csv")
+    trainData = pd.read_csv("./train.csv")
 
     n = trainData.shape[0]
     Fish = []
@@ -15,7 +15,7 @@ def getData():
 
     i = 0
     while i < n:
-        if i % 100 == 0:
+        if i % 10 == 0:
             print(i)
         filePath = trainData.iloc[i, 0]
         mask = trainData.iloc[i, 1]
@@ -40,7 +40,7 @@ def getData():
                 newMask[xIndex][yIndex] = 1
             lastPixels = len(pixels[j])
 
-        # if "f516a20.jpg" in filePath:
+        # if "00dec6a.jpg_Sugar" in filePath:
         #     newImage = np.zeros((1400, 2100, 3))
         #     for x in range(1400):
         #         for y in range(2100):
