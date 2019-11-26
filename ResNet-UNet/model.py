@@ -83,7 +83,7 @@ class UpBlockForUNetWithResNet50(nn.Module):
 class UNetWithResnet50Encoder(nn.Module):
     DEPTH = 6
 
-    def __init__(self, n_classes=2):
+    def __init__(self, n_classes=4):
         super().__init__()
         resnet = torchvision.models.resnet.resnet50(pretrained=True)
         down_blocks = []

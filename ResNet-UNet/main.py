@@ -67,8 +67,8 @@ def train():
     test_size = len(dataSet) - train_size
     train_dataset, test_dataset = random_split(dataSet, [train_size, test_size])
 
-    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=2)
-    test_dataloader = DataLoader(test_dataset, batch_size=4, shuffle=True, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=0)
+    test_dataloader = DataLoader(test_dataset, batch_size=2, shuffle=True, num_workers=0)
 
     train_model(model, criterion, optimizer, train_dataloader, test_dataloader)
 
