@@ -86,6 +86,8 @@ class UNetWithResnet50Encoder(nn.Module):
     def __init__(self, n_classes=4):
         super().__init__()
         resnet = torchvision.models.resnet.resnet50(pretrained=True)
+        for p in resnet.parameters():
+            p.requires_grad = False
         down_blocks = []
         up_blocks = []
         self.input_block = nn.Sequential(*list(resnet.children()))[:3]
