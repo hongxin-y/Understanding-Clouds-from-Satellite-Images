@@ -109,11 +109,12 @@ def saveMask():
 
 # 配合DataLoader生成
 class ImageDataset(Dataset):
-    def __init__(self, imagePath, maskPath, transform=None, target_transform=None):
+    def __init__(self, imagePath, maskPath, transform=None, target_transform=None, augment_transform=False):
         imgs = self.__make_dataset(imagePath, maskPath)
         self.imgs = imgs
         self.transform = transform
         self.target_transform = target_transform
+        self.augment_transform = augment_transform
 
     def __make_dataset(self, imagePath, maskPath):
         imgs = []
@@ -132,6 +133,15 @@ class ImageDataset(Dataset):
         for i in range(4):
             if np.sum(mask[:, :, i]) > 0:
                 labels[i] = 1
+
+        mask = Image.fromarray(np.uint8(mask))
+        if self.augment_transform == True:
+            if np.random.rand() > 0.5:
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                mask = mask.transpose(Image.FLIP_LEFT_RIGHT)
+            if np.random.rand() > 0.5:
+                img = img.transpose(Image.FLIP_TOP_BOTTOM)
+                mask = mask.transpose(Image.FLIP_TOP_BOTTOM)
         if self.transform is not None:
             img = self.transform(img)
         if self.target_transform is not None:

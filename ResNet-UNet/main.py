@@ -9,7 +9,7 @@ import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def train_model(model, criterion, optimizer, train_dataloader, test_dataloader, num_epochs=20):
+def train_model(model, criterion, optimizer, train_dataloader, test_dataloader, num_epochs=30):
     model.train()
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -95,7 +95,7 @@ def train():
         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
     y_transforms = transforms.ToTensor()
-    dataSet = ImageDataset("./data/modified_train_images", "./data/train_mask", transform=x_transforms, target_transform=y_transforms)
+    dataSet = ImageDataset("./data/modified_train_images", "./data/train_mask", transform=x_transforms, target_transform=y_transforms, augment_transform=True)
     train_size = int(0.8 * len(dataSet))
     test_size = len(dataSet) - train_size
     train_dataset, test_dataset = random_split(dataSet, [train_size, test_size])
@@ -110,7 +110,6 @@ def test():
     checkpoint = torch.load("./checkpoint/model_6_epoch.pth")
     model = UNetWithResnet50Encoder().to(device)
     model.load_state_dict(checkpoint['net'])
-
     x_transforms = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])

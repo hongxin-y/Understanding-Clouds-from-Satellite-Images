@@ -4,7 +4,7 @@ from PIL import Image
 
 def label_accuracy(path):
     data = pd.read_csv(path)
-    threshold = [0.60, 0.67, 0.63, 0.45]
+    threshold = [0.60, 0.67, 0.63, 0.6]
     cnt = 0
     for i in range(data.shape[0]):
         for j in range(1, 5):
@@ -41,7 +41,7 @@ def get_Dice(output, target, mask_threshold, valid_output=True):
 
 
 def calculate_dice(path):
-    label_threshold = [0.60, 0.67, 0.63, 0.45]
+    label_threshold = [0.60, 0.67, 0.63, 0.6]
     mask_threshold = [102, 102, 102, 102]
     sum_dice = 0
 
