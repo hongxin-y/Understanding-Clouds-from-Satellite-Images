@@ -12,6 +12,8 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
 
+from sklearn.metrics import f1_score
+
 # Read Label
 train = pd.read_csv('train.csv')
 train['Image'] = train['Image_Label'].map(lambda x: x.split('.')[0])
@@ -125,7 +127,7 @@ val_gen = DataGenerator(idxV, mode='validate')
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001), metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score])
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
