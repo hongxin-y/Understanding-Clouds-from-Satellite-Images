@@ -114,7 +114,7 @@ model = Model(inputs=base_model.input, outputs=x)
 
 
 # COMPILE MODEL
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score])
 
 
 # SPLIT TRAIN AND VALIDATE
