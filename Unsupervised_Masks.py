@@ -14,6 +14,13 @@ from keras.optimizers import SGD
 
 from sklearn.metrics import f1_score
 
+def dice(y_true, y_pred):
+    # Symbolically compute the intersection
+    y_int = y_true*y_pred
+    # Technically this is the negative of the Sorensen-Dice index. This is done for
+    # minimization purposes
+    return -(2*keras.sum(y_int) / (keras.sum(y_true) + keras.sum(y_pred)))
+
 # Read Label
 train = pd.read_csv('train.csv')
 train['Image'] = train['Image_Label'].map(lambda x: x.split('.')[0])
@@ -114,7 +121,7 @@ model = Model(inputs=base_model.input, outputs=x)
 
 
 # COMPILE MODEL
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score, dice])
 
 
 # SPLIT TRAIN AND VALIDATE
@@ -127,7 +134,7 @@ val_gen = DataGenerator(idxV, mode='validate')
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score, dice])
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
@@ -150,5 +157,7 @@ for k in range(1,5):
 print('OVERALL: ',end='')
 auc = np.round( roc_auc_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),train3[['o1','o2','o3','o4']].values.reshape((-1)) ),3 )
 acc = np.round( accuracy_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
+dice_matrices = np.round( dice(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
 print('AUC =',auc, end='')
-print(', ACC =',acc)
+print(', ACC =',acc, end = '')
+print(', Dice =', dice_matrices)
