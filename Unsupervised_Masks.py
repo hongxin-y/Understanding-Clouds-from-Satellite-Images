@@ -4,6 +4,7 @@ import numpy as np
 import keras
 import cv2
 from keras.applications.xception import Xception
+from keras import backend as K
 from keras import layers, optimizers
 from keras.models import Sequential, Model
 from sklearn.model_selection import train_test_split
@@ -11,15 +12,16 @@ from sklearn.metrics import roc_auc_score, accuracy_score
 from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
+from keras.callbacks import Callback
 
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, recall_score, precision_score
 
 def dice(y_true, y_pred):
     # Symbolically compute the intersection
     y_int = y_true*y_pred
     # Technically this is the negative of the Sorensen-Dice index. This is done for
     # minimization purposes
-    return -(2*keras.sum(y_int) / (keras.sum(y_true) + keras.sum(y_pred)))
+    return -(2*K.sum(y_int) / (K.sum(y_true) + K.sum(y_pred)))
 
 # Read Label
 train = pd.read_csv('train.csv')
@@ -103,6 +105,23 @@ class DataGenerator(keras.utils.Sequence):
 
         return X, y
 
+class Metrics(Callback):
+    def on_train_begin(self, log = {}):
+        self.val_f1s = []
+        self.val_recalls = []
+        self.val_precisions = []
+
+    def on_epoch_end(self, log = {}):
+        val_predict = (np.asarray(self.model.predict(self.model.validation_data[0]))).round()
+        val_targ = self.model.validation_data[1]
+        _val_f1 = f1_score(val_targ, val_predict)
+        _val_recall = recall_score(val_targ, val_predict)
+        _val_precision = precision_score(val_targ, val_predict)
+        self.val_f1s.append(_val_f1)
+        self.val_recalls.append(_val_recall)
+        self.val_precisions.append(_val_precision)
+        print (" — val_f1: %f — val_precision: %f — val_recall %f" %(_val_f1, _val_precision, _val_recall))
+
 
 # USE KERAS XCEPTION MODEL
 base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
@@ -121,21 +140,23 @@ model = Model(inputs=base_model.input, outputs=x)
 
 
 # COMPILE MODEL
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score, dice])
+metrics = Metrics()
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
 
 
 # SPLIT TRAIN AND VALIDATE
 idxT, idxV = train_test_split(train2.index, random_state=42, test_size=0.2)
 train_gen = DataGenerator(idxT, flips=True, shuffle=True)
 val_gen = DataGenerator(idxV, mode='validate')
+print("Data Generation done")
 
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
-h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
+h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen, callbacks = [metrics])
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score, dice])
-h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
+h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen, callbacks = [metrics])
 
 
 # PREDICT HOLDOUT SET
@@ -158,6 +179,8 @@ print('OVERALL: ',end='')
 auc = np.round( roc_auc_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),train3[['o1','o2','o3','o4']].values.reshape((-1)) ),3 )
 acc = np.round( accuracy_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
 dice_matrices = np.round( dice(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
+f1 = np.round( f1_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
 print('AUC =',auc, end='')
 print(', ACC =',acc, end = '')
-print(', Dice =', dice_matrices)
+print(', Dice =', dice_matrices, end = '')
+print(', f1 = ', f1)
