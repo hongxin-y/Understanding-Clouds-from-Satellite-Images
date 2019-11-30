@@ -21,7 +21,7 @@ def dice_coef(y_true, y_pred, smooth=1):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+    return (2 * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
 # Read Label
 train = pd.read_csv('train.csv')[:100]
@@ -136,7 +136,7 @@ print("Data Generation done")
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001), metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001))
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
@@ -154,16 +154,19 @@ for k in range(1,5):
     print(types[k-1],': ',end='')
     auc = np.round( roc_auc_score(train3['d'+str(k)].values,train3['o'+str(k)].values  ),3 )
     acc = np.round( accuracy_score(train3['d'+str(k)].values,(train3['o'+str(k)].values>0.5).astype(int) ),3 )
+    f1 = np.round( f1_score(train3['d'+str(k)].values,(train3['o'+str(k)].values>0.5).astype(int) ),3 )
+    #dice = np.round( dice_coef(train3['d'+str(k)].values,(train3['o'+str(k)].values>0.5).astype(int) ),3 )
     print('AUC =',auc,end='')
-    print(', ACC =',acc)
+    print(', ACC =',acc, end = '')
+    print('f1 = ', f1)
 print('OVERALL: ',end='')
 auc = np.round( roc_auc_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),train3[['o1','o2','o3','o4']].values.reshape((-1)) ),3 )
 acc = np.round( accuracy_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
 f1 = np.round( f1_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
-dice = np.round(dice_coef(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ))
+#dice = np.round(dice_coef(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ))
 print('AUC =',auc, end='')
-print(', ACC =',acc)
-print(', dice = ', dice, end = '')
+print(', ACC =',acc, end = '')
+#print(', dice = ', dice, end = '')
 print('f1 = ', f1)
 
 '''
