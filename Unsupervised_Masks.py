@@ -24,7 +24,7 @@ def dice_coef(y_true, y_pred, smooth=1):
     return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
 # Read Label
-train = pd.read_csv('train.csv')[:1000]
+train = pd.read_csv('train.csv')[:100]
 train['Image'] = train['Image_Label'].map(lambda x: x.split('.')[0])
 train['Label'] = train['Image_Label'].map(lambda x: x.split('_')[1])
 train2 = pd.DataFrame({'Image':train['Image'][::4]})
@@ -105,24 +105,6 @@ class DataGenerator(keras.utils.Sequence):
 
         return X, y
 
-class Metrics(Callback):
-    def on_train_begin(self, log = {}):
-        self.val_f1s = []
-        self.val_recalls = []
-        self.val_precisions = []
-
-    def on_epoch_end(self, epoch, log = {}):
-        val_predict = (np.asarray(self.model.predict(self.model.validation_data[0]))).round()
-        val_targ = self.model.validation_data[1]
-        _val_f1 = f1_score(val_targ, val_predict)
-        _val_recall = recall_score(val_targ, val_predict)
-        _val_precision = precision_score(val_targ, val_predict)
-        self.val_f1s.append(_val_f1)
-        self.val_recalls.append(_val_recall)
-        self.val_precisions.append(_val_precision)
-        print (" — val_f1: %f — val_precision: %f — val_recall %f" %(_val_f1, _val_precision, _val_recall))
-
-
 # USE KERAS XCEPTION MODEL
 base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
 
@@ -140,7 +122,6 @@ model = Model(inputs=base_model.input, outputs=x)
 
 
 # COMPILE MODEL
-metrics = Metrics()
 model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
 
 
@@ -155,7 +136,7 @@ print("Data Generation done")
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001), metrics=['accuracy'])
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
