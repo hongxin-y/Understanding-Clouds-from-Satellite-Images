@@ -24,7 +24,7 @@ def dice_coef(y_true, y_pred, smooth=1):
     return (2 * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
 
 # Read Label
-train = pd.read_csv('train.csv')[:100]
+train = pd.read_csv('train.csv')
 train['Image'] = train['Image_Label'].map(lambda x: x.split('.')[0])
 train['Label'] = train['Image_Label'].map(lambda x: x.split('_')[1])
 train2 = pd.DataFrame({'Image':train['Image'][::4]})
@@ -136,7 +136,7 @@ print("Data Generation done")
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001))
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001), metrics=['accuracy'])
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
@@ -164,8 +164,8 @@ auc = np.round( roc_auc_score(train3[['d1','d2','d3','d4']].values.reshape((-1))
 acc = np.round( accuracy_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
 f1 = np.round( f1_score(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ),3 )
 #dice = np.round(dice_coef(train3[['d1','d2','d3','d4']].values.reshape((-1)),(train3[['o1','o2','o3','o4']].values>0.5).astype(int).reshape((-1)) ))
-print('AUC =',auc, end='')
-print(', ACC =',acc, end = '')
+print('AUC =',auc, end=', ')
+print('ACC =',acc, end = ', ')
 #print(', dice = ', dice, end = '')
 print('f1 = ', f1)
 
