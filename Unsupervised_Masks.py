@@ -111,7 +111,7 @@ class Metrics(Callback):
         self.val_recalls = []
         self.val_precisions = []
 
-    def on_epoch_end(self, log = {}):
+    def on_epoch_end(self, epoch, log = {}):
         val_predict = (np.asarray(self.model.predict(self.model.validation_data[0]))).round()
         val_targ = self.model.validation_data[1]
         _val_f1 = f1_score(val_targ, val_predict)
@@ -152,11 +152,11 @@ print("Data Generation done")
 
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
-h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen, callbacks = [metrics])
+h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy', f1_score, dice])
-h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen, callbacks = [metrics])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
+h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
 # PREDICT HOLDOUT SET
