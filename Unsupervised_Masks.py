@@ -170,7 +170,7 @@ print('ACC =',acc, end = ', ')
 #print(', dice = ', dice, end = '')
 print('f1 = ', f1)
 
-'''
+
 # NEW MODEL FROM OLD TO EXTRACT ACTIVATION MAPS
 all_layer_weights = model.layers[-1].get_weights()[0]
 cam_model = Model(inputs=model.input, 
@@ -217,5 +217,5 @@ for k in np.random.randint(0,5000,25):
     dice = np.round( dice_coef8(mask,mask0),3 )
     plt.title('Dice = '+str(dice)+'  -  '+IMGS[k]+'  -  '+types[pred])
     
-    plt.show()
-'''
+    plt.savefig("sgementation_"+str(k)+".jpg")
+
