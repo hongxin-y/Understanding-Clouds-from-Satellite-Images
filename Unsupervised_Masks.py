@@ -15,6 +15,7 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras import backend as K
+import tqdm
 import os
 
 def dice_coef(y_true, y_pred, smooth=1):
@@ -86,7 +87,7 @@ class DataGenerator(keras.utils.Sequence):
         y = np.zeros((lnn, 4), dtype=np.int8)
 
         # Generate data
-        for k in range(lnn):
+        for k in tqdm(range(lnn)):
             img = cv2.imread(self.path + self.list_IDs[indexes[k]] + '.jpg')
             img = cv2.resize(img, (self.width, self.height), interpolation=cv2.INTER_AREA)
             # AUGMENTATION FLIPS
@@ -133,11 +134,11 @@ print("Data Generation done")
 
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
-h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
+h = model.fit_generator(train_gen, epochs = 20, verbose=2, validation_data = val_gen, steps_per_epoch = 500)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
+h = model.fit_generator(train_gen, epochs = 20, verbose=2, validation_data = val_gen, steps_per_epoch = 500)
 
 
 # PREDICT HOLDOUT SET
