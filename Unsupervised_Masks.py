@@ -6,6 +6,7 @@ import scipy
 import keras
 import cv2
 from keras.applications.xception import Xception
+from keras import backend as K
 from keras import layers, optimizers
 from keras.models import Sequential, Model
 from sklearn.model_selection import train_test_split
@@ -104,6 +105,23 @@ class DataGenerator(keras.utils.Sequence):
 
         return X, y
 
+class Metrics(Callback):
+    def on_train_begin(self, log = {}):
+        self.val_f1s = []
+        self.val_recalls = []
+        self.val_precisions = []
+
+    def on_epoch_end(self, epoch, log = {}):
+        val_predict = (np.asarray(self.model.predict(self.model.validation_data[0]))).round()
+        val_targ = self.model.validation_data[1]
+        _val_f1 = f1_score(val_targ, val_predict)
+        _val_recall = recall_score(val_targ, val_predict)
+        _val_precision = precision_score(val_targ, val_predict)
+        self.val_f1s.append(_val_f1)
+        self.val_recalls.append(_val_recall)
+        self.val_precisions.append(_val_precision)
+        print (" — val_f1: %f — val_precision: %f — val_recall %f" %(_val_f1, _val_precision, _val_recall))
+
 
 # USE KERAS XCEPTION MODEL
 base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
@@ -122,6 +140,7 @@ model = Model(inputs=base_model.input, outputs=x)
 
 
 # COMPILE MODEL
+metrics = Metrics()
 model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
 
 
@@ -129,13 +148,14 @@ model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001),
 idxT, idxV = train_test_split(train2.index, random_state=42, test_size=0.2)
 train_gen = DataGenerator(idxT, flips=True, shuffle=True)
 val_gen = DataGenerator(idxV, mode='validate')
+print("Data Generation done")
 
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.0001), metrics=['accuracy'])
+model.compile(loss='binary_crossentropy', optimizer = optimizers.Adam(lr=0.001), metrics=['accuracy'])
 h = model.fit_generator(train_gen, epochs = 2, verbose=2, validation_data = val_gen)
 
 
