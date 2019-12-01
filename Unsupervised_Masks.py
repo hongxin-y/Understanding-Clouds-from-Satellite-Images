@@ -154,7 +154,7 @@ class DataGenerator(keras.utils.Sequence):
     def __data_generation(self, indexes):
         # 'Generates data containing batch_size samples'
         # Initialization
-        lnn = len(indexes) if self.step_per_epoch == None else self.step_per_epoch*self.batch_size
+        lnn = len(indexes)
         X = np.empty((lnn, self.height, self.width, 3), dtype=np.float32)
         y = np.zeros((lnn, 4), dtype=np.int8)
 
