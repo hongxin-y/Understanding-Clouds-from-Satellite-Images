@@ -200,11 +200,11 @@ val_gen = DataGenerator(idxV, mode='validate')
 print("Data Generation done")
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
-h = model.fit_generator(train_gen, epochs=20, verbose=2, validation_data=val_gen, steps_per_epoch=500)
+h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-h = model.fit_generator(train_gen, epochs=20, verbose=2, validation_data=val_gen, steps_per_epoch=500)
+h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen)
 
 # PREDICT HOLDOUT SET
 train3 = train2.loc[train2.index.isin(idxV)].copy()
