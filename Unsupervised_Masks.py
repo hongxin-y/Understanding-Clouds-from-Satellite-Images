@@ -131,7 +131,7 @@ class DataGenerator(keras.utils.Sequence):
         self.on_epoch_end()
 
     def __len__(self):
-        if step_per_epoch != None: return self.step_per_epoch
+        if self.step_per_epoch != None: return self.step_per_epoch
         # 'Denotes the number of batches per epoch'
         ct = int(np.floor(len(self.list_IDs) / self.batch_size))
         if len(self.list_IDs) > ct * self.batch_size: ct += 1
@@ -244,6 +244,7 @@ all_layer_weights = model.layers[-1].get_weights()[0]
 cam_model = Model(inputs=model.input,
                   outputs=(model.layers[-3].output, model.layers[-1].output))
 
+'''
 # DISPLAY 25 RANDOM IMAGES
 PATH = './train_images/'
 IMGS = os.listdir(PATH)
@@ -259,30 +260,67 @@ for k in np.random.randint(0, 5000, 25):
     final_output = scipy.ndimage.zoom(final_output, (32, 32), order=1)
 
     # DISPLAY IMAGE WITH CLASS ACTIVATION MAPS
-    plt.figure(figsize=(12, 6))
-    plt.subplot(1, 2, 1)
+    # plt.figure(figsize=(12, 6))
+    # plt.subplot(1, 2, 1)
     mx = np.round(np.max(final_output), 1)
     mn = np.round(np.min(final_output), 1)
     final_output = (final_output - mn) / (mx - mn)
     mask0 = (final_output > 0.3).astype(int)
     contour0 = mask2contour(mask0, 5)
-    plt.imshow(img, alpha=0.5)
-    plt.imshow(final_output, cmap='jet', alpha=0.5)
-    plt.title('Found ' + types[pred] + '  -  Pr = ' + str(np.round(pred_vec[0, pred], 3)))
+    # plt.imshow(img, alpha=0.5)
+    # plt.imshow(final_output, cmap='jet', alpha=0.5)
+    # plt.title('Found ' + types[pred] + '  -  Pr = ' + str(np.round(pred_vec[0, pred], 3)))
 
     # DISPLAY IMAGE WITH MASKS
-    plt.subplot(1, 2, 2)
+    # plt.subplot(1, 2, 2)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     rle = train2.loc[IMGS[k].split('.')[0], 'e' + str(pred + 1)]
     mask = rle2mask2X(rle, shrink=(512, 352))
-    contour = mask2contour(mask, 5)
-    img[contour == 1, :2] = 255
-    img[contour0 == 1, 2] = 255
-    diff = np.ones((352, 512, 3), dtype=np.int) * 255 - img
-    img = img.astype(int);
-    img[mask0 == 1, :] += diff[mask0 == 1, :] // 4
-    plt.imshow(img)
+    # contour = mask2contour(mask, 5)
+    # img[contour == 1, :2] = 255
+    # img[contour0 == 1, 2] = 255
+    # diff = np.ones((352, 512, 3), dtype=np.int) * 255 - img
+    # img = img.astype(int);
+    # img[mask0 == 1, :] += diff[mask0 == 1, :] // 4
+    # plt.imshow(img)
     dice = np.round(dice_coef8(mask, mask0), 3)
-    plt.title('Dice = ' + str(dice) + '  -  ' + IMGS[k] + '  -  ' + types[pred])
+    # plt.title('Dice = ' + str(dice) + '  -  ' + IMGS[k] + '  -  ' + types[pred])
 
-    plt.savefig("sgementation_" + str(k) + ".jpg")
+    # plt.savefig("sgementation_" + str(k) + ".jpg")
+
+'''
+
+
+PATH = './train_images/'
+for i in range(1, 5): train3['p' + str(i)] = ''
+for i in range(1, 5): train3['pp' + str(i)] = 0
+
+for i, f in enumerate(train3.index.values):
+
+    # LOAD IMAGE AND PREDICT CLASS ACTIVATION MAPS
+    img = cv2.resize(cv2.imread(PATH + f + '.jpg'), (512, 352))
+    x = np.expand_dims(img, axis=0) / 128. - 1.
+    last_conv_output, pred_vec = cam_model.predict(x)
+    last_conv_output = np.squeeze(last_conv_output)
+
+    for pred in [0, 1, 2, 3]:
+        # CREATE FOUR MASKS FROM ACTIVATION MAPS
+        layer_weights = all_layer_weights[:, pred]
+        final_output = np.dot(last_conv_output.reshape((16 * 11, 2048)), layer_weights).reshape(11, 16)
+        final_output = scipy.ndimage.zoom(final_output, (32, 32), order=1)
+        mx = np.round(np.max(final_output), 1)
+        mn = np.round(np.min(final_output), 1)
+        final_output = (final_output - mn) / (mx - mn)
+        final_output = cv2.resize(final_output, (525, 350))
+        train3.loc[f, 'p' + str(pred + 1)] = mask2rle((final_output > 0.3).astype(int))
+        train3.loc[f, 'pp' + str(pred + 1)] = pred_vec[0, pred]
+
+
+# COMPUTE KAGGLE DICE
+th = [0.8,0.5,0.7,0.7]
+for k in range(1,5):
+    train3['ss'+str(k)] = train3.apply(lambda x:dice_coef6(x['e'+str(k)],x['p'+str(k)],x['pp'+str(k)],th[k-1]),axis=1)
+    dice = np.round( train3['ss'+str(k)].mean(),3 )
+    print(types[k-1],': Kaggle Dice =',dice)
+dice = np.round( np.mean( train3[['ss1','ss2','ss3','ss4']].values ),3 )
+print('Overall : Kaggle Dice =',dice)
