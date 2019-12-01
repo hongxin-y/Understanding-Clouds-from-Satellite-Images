@@ -112,7 +112,7 @@ train2[['d1', 'd2', 'd3', 'd4']].head()
 class DataGenerator(keras.utils.Sequence):
     # USES GLOBAL VARIABLE TRAIN2 COLUMNS E1, E2, E3, E4
     # 'Generates data for Keras'
-    def __init__(self, list_IDs, batch_size=32, shuffle=False, width=512, height=352, scale=1 / 128., sub=1., step_per_epoch = 500,
+    def __init__(self, list_IDs, batch_size=32, shuffle=False, width=512, height=352, scale=1 / 128., sub=1., 
                  mode='train',
                  path='./train_images/', flips=False):
         # 'Initialization'
@@ -127,11 +127,9 @@ class DataGenerator(keras.utils.Sequence):
         self.height = height
         self.mode = mode
         self.flips = flips
-        self.step_per_epoch = step_per_epoch
         self.on_epoch_end()
 
     def __len__(self):
-        if self.step_per_epoch != None: return self.step_per_epoch
         # 'Denotes the number of batches per epoch'
         ct = int(np.floor(len(self.list_IDs) / self.batch_size))
         if len(self.list_IDs) > ct * self.batch_size: ct += 1
@@ -202,11 +200,11 @@ val_gen = DataGenerator(idxV, mode='validate')
 print("Data Generation done")
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
-h = model.fit_generator(train_gen, epochs=20, verbose=2, validation_data=val_gen)
+h = model.fit_generator(train_gen, epochs=5, verbose=2, validation_data=val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-h = model.fit_generator(train_gen, epochs=20, verbose=2, validation_data=val_gen)
+h = model.fit_generator(train_gen, epochs=5, verbose=2, validation_data=val_gen)
 
 # PREDICT HOLDOUT SET
 train3 = train2.loc[train2.index.isin(idxV)].copy()
