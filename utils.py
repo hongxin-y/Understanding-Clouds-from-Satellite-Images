@@ -24,7 +24,7 @@ def rle2mask(mask_rle, size = (2100, 1400)):
     lengths = np.array(mask[1::2], dtype = int)
     # here dtype
     img = np.zeros(size[0]*size[1], dtype = int)
-    for s, l in enumerate(starts, lengths):
+    for s, l in zip(starts, lengths):
         img[s:s+l] = np.ones(l)
     return img.reshape(size).T
 
