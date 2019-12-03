@@ -45,16 +45,18 @@ def mask2contour(mask, width=5):
     mask3 = np.logical_xor(mask,mask3)
     return np.logical_or(mask2,mask3)
 
-def dice_coef(y_true_rle, y_pred_rle, y_pred_prob, th):
-    if y_pred_prob<th:
-        if y_true_rle=='': return 1
+def dice_coef(y_rle_true, y_rle_pred, probs, th):
+    # there is not such label in the figure
+    if probs < th:
+        if y_rle_true=='': return 1
         else: return 0
-    else:
-        y_true_f = rle2mask(y_true_rle)[::4,::4]
-        y_pred_f = np.array(Image.fromarray(rle2mask(y_pred_rle,shape=(525,350))).resize((525,350)))
-        union = np.sum(y_true_f) + np.sum(y_pred_f)
-        if union==0: return 1
-        intersection = np.sum(y_true_f * y_pred_f)
-        return 2. * intersection / union
+    y_mask_true = rle2mask(y_rle_true)[::4,::4]
+    y_mask_pred = np.array(Image.fromarray(rle2mask(y_rle_pred,size=(525,350))).resize((525,350)))
+    union = np.sum(y_mask_true) + np.sum(y_mask_pred)
+    # there are not union part in two figures
+    if union==0: 
+        return 1
+    intersection = np.sum(y_mask_true * y_mask_pred)
+    return 2. * intersection / union
 
     
