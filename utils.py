@@ -20,8 +20,8 @@ import os
 
 def rle2mask(mask_rle, size = (2100, 1400)):
     mask = mask_rle.split()
-    starts = np.array(mask[::2]) - 1
-    lengths = np.array(mask[1::2])
+    starts = np.array(mask[::2], dtype = int) - 1
+    lengths = np.array(mask[1::2], dtype = int)
     # here dtype
     img = np.zeros(size[0]*size[1], dtype = int)
     for s, l in enumerate(starts, lengths):
