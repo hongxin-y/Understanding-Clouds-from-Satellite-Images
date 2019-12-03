@@ -24,7 +24,7 @@ IMG_PATH = './train_images/'
 labels = ['fish', 'flower', 'gravel', 'sugar']
 
 # Read Label
-df = pd.read_csv('train.csv').sample(frac=1.)[:104]
+df = pd.read_csv('train.csv').sample(frac=1.)[:1040]
 df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
 df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
 data_df = pd.DataFrame({'Image': df['Image'][::4]})
@@ -77,7 +77,7 @@ class DataGenerator(keras.utils.Sequence):
             # normalize X and get y
             X[k] = img / 128. - 1.
             if self.mode == 'train' or self.mode == 'validate':
-                y[k,] = data_df.loc[self.id_list[indexes[k]], ['is_fish', 'is_flower', 'is_gravel', 'is_sugar']].values
+                y[k] = data_df.loc[self.id_list[indexes[k]], ['is_fish', 'is_flower', 'is_gravel', 'is_sugar']].values
             return X, y
 
     def __getitem__(self, k):
@@ -190,11 +190,11 @@ model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.001), m
 print('Model Building Done')
 
 # train
-h = model.fit_generator(train_gen, epochs=1, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
 # unfroze the layers and train with lr = 0.0001
 for layer in model.layers: layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-h = model.fit_generator(train_gen, epochs=1, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
 print("Training Done")
 
 # evaluation_class
