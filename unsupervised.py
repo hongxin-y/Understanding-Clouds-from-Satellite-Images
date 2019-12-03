@@ -24,7 +24,7 @@ IMG_PATH = './train_images/'
 labels = ['fish', 'flower', 'gravel', 'sugar']
 
 # Read Label
-df = pd.read_csv('train.csv')[:52]
+df = pd.read_csv('train.csv').sample(frac=1.)[:104]
 df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
 df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
 data_df = pd.DataFrame({'Image': df['Image'][::4]})
@@ -87,14 +87,14 @@ class DataGenerator(keras.utils.Sequence):
             return X, y
         return X
 
-def evaluation_class(model, test_df):
+def evaluation_class(model, test_df, threshold = 0.5):
     # prediction
     pred_gen = DataGenerator(test_df.index, mode='predict')
     predicitions = model.predict_generator(pred_gen, verbose=2)
     test_df.loc[:,'pred_fish'],  test_df.loc[:,'pred_flower'], test_df.loc[:,'pred_gravel'], test_df.loc[:,'pred_sugar'] = 0, 0, 0, 0
     test_df[['pred_fish', 'pred_flower', 'pred_gravel', 'pred_sugar']] = predicitions
 
-    th = 0.5
+    th = threshold
     log = ""
     for label in labels:
         log += label + ": "
@@ -116,10 +116,9 @@ def evaluation_class(model, test_df):
     log += "AUC = " + str(np.round(auc, 3)) + ", ACC = " + str(np.round(acc, 3)) + ", f1 = " + str(np.round(f1, 3)) + "\n"
     return log
 
-def evaluation_sigmentation(test_df):
+def evaluation_sigmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
     # evaluation on figures
     log = ""
-    thresholds = [0.8,0.5,0.7,0.7]
     for k, label in enumerate(labels):
         test_df['score_'+ label] = test_df.apply(lambda x:dice(x["rle_"+label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
         dice = test_df['score_'+ label].mean()
@@ -128,14 +127,15 @@ def evaluation_sigmentation(test_df):
     dice = np.mean( test_df[['score_fish','score_flower','score_gravel','score_sugar']].values )
     #print("Overall : Kaggle Dice =",np.around(dice))
     log += "Overall : Kaggle Dice =" + str(np.around(dice, 3))
+    return log
 
 def generate_sigmentation(model, test_df):
     # a new model to generate segmentation figure
     weights = model.layers[-1].get_weights()[0]
     sig = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
 
-    test_df.loc['pred_rle_fish'],  test_df.loc['pred_rle_flower'], test_df.loc['pred_rle_gravel'], test_df.loc['pred_rle_sugar'] = "", "", "", ""
-    test_df.loc['pred_vec_fish'],  test_df.loc['pred_vec_flower'], test_df.loc['pred_vec_gravel'], test_df.loc['pred_vec_sugar'] = 0, 0, 0, 0
+    test_df.loc[:,'pred_rle_fish'],  test_df.loc[:,'pred_rle_flower'], test_df.loc[:,'pred_rle_gravel'], test_df.loc[:,'pred_rle_sugar'] = "", "", "", ""
+    test_df.loc[:,'pred_vec_fish'],  test_df.loc[:,'pred_vec_flower'], test_df.loc[:,'pred_vec_gravel'], test_df.loc[:,'pred_vec_sugar'] = 0, 0, 0, 0
 
     for i, idx in enumerate(test_df.index.values):
 
@@ -198,12 +198,12 @@ h = model.fit_generator(train_gen, epochs=1, verbose=2, validation_data=val_gen,
 print("Training Done")
 
 # evaluation_class
-log = evaluation_class(model, test_df)
+log = evaluation_class(model, test_df, threshold = 0.5)
 print(log)
 
 # generate sigmentation figure
 test_df = generate_sigmentation(model, test_df)
 
 # evaluation final result
-log = evaluation_sigmentation(test_df)
+log = evaluation_sigmentation(test_df, thresholds = [0.8,0.5,0.7,0.7])
 print(log)
