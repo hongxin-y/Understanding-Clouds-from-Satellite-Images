@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import scipy
 import keras
 import cv2
+from PIL import Image
 from keras.applications.xception import Xception
 from keras import backend as K
 from keras import layers, optimizers
