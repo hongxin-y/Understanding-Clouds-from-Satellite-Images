@@ -45,7 +45,7 @@ def mask2contour(mask, width=5):
     mask3 = np.logical_xor(mask,mask3)
     return np.logical_or(mask2,mask3)
 
-def dice(y_true_rle, y_pred_rle, y_pred_prob, th):
+def dice_coef(y_true_rle, y_pred_rle, y_pred_prob, th):
     if y_pred_prob<th:
         if y_true_rle=='': return 1
         else: return 0

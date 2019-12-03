@@ -18,7 +18,7 @@ from keras.optimizers import SGD
 from keras import backend as K
 import os
 
-from utils import mask2rle, dice
+from utils import mask2rle, dice_coef
 
 IMG_PATH = './train_images/'
 labels = ['fish', 'flower', 'gravel', 'sugar']
@@ -120,7 +120,7 @@ def evaluation_sigmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
     # evaluation on figures
     log = ""
     for k, label in enumerate(labels):
-        test_df['score_'+ label] = test_df.apply(lambda x:dice(x["rle_"+label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
+        test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_"+label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
         dice = test_df['score_'+ label].mean()
         #print(label,': Kaggle Dice =',np.around(dice))
         log += label + ": Kaggle Dice =" + str(np.around(dice, 3))
