@@ -24,7 +24,7 @@ IMG_PATH = './train_images/'
 labels = ['fish', 'flower', 'gravel', 'sugar']
 
 # Read Label
-df = pd.read_csv('train.csv').sample(frac=1.)[:1040]
+df = pd.read_csv('train.csv').sample(frac=1.)
 df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
 df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
 data_df = pd.DataFrame({'Image': df['Image'][::4]})
@@ -78,7 +78,7 @@ class DataGenerator(keras.utils.Sequence):
             X[k] = img / 128. - 1.
             if self.mode == 'train' or self.mode == 'validate':
                 y[k] = data_df.loc[self.id_list[indexes[k]], ['is_fish', 'is_flower', 'is_gravel', 'is_sugar']].values
-            return X, y
+        return X, y
 
     def __getitem__(self, k):
         batch_indexes = self.indexes[k*self.batch_size:(k+1)*self.batch_size]
