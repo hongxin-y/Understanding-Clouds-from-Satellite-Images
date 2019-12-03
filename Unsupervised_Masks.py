@@ -113,7 +113,7 @@ train2[['d1', 'd2', 'd3', 'd4']].head()
 class DataGenerator(keras.utils.Sequence):
     # USES GLOBAL VARIABLE TRAIN2 COLUMNS E1, E2, E3, E4
     # 'Generates data for Keras'
-    def __init__(self, list_IDs, batch_size=8, shuffle=False, width=512, height=352, scale=1 / 128., sub=1., 
+    def __init__(self, list_IDs, batch_size=8, shuffle=True, width=512, height=352, scale=1 / 128., sub=1.,
                  mode='train',
                  path='./train_images/', flips=False):
         # 'Initialization'
@@ -185,7 +185,7 @@ base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, 
 for layer in base_model.layers:
     if not isinstance(layer, layers.BatchNormalization): layer.trainable = False
 
-# BUILD MODEL NEW TOP
+# BUILD MODEL NEW TOPx
 x = base_model.output
 x = layers.GlobalAveragePooling2D()(x)
 x = layers.Dense(4, activation='sigmoid')(x)
@@ -201,11 +201,11 @@ val_gen = DataGenerator(idxV, mode='validate')
 print("Data Generation done")
 
 # TRAIN NEW MODEL TOP LR=0.001 (with bottom frozen)
-h = model.fit_generator(train_gen, epochs=20, verbose=2, validation_data=val_gen, steps_per_epoch = 50)
+h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen)
 # TRAIN ENTIRE MODEL LR=0.0001 (with all unfrozen)
 for layer in model.layers: layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-h = model.fit_generator(train_gen, epochs=20, verbose=2, validation_data=val_gen, steps_per_epoch = 50)
+h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen)
 
 # PREDICT HOLDOUT SET
 train3 = train2.loc[train2.index.isin(idxV)].copy()
@@ -257,7 +257,6 @@ for k in np.random.randint(0, 5000, 25):
     layer_weights = all_layer_weights[:, pred]
     final_output = np.dot(last_conv_output.reshape((16 * 11, 2048)), layer_weights).reshape(11, 16)
     final_output = scipy.ndimage.zoom(final_output, (32, 32), order=1)
-
     # DISPLAY IMAGE WITH CLASS ACTIVATION MAPS
     # plt.figure(figsize=(12, 6))
     # plt.subplot(1, 2, 1)
@@ -269,7 +268,6 @@ for k in np.random.randint(0, 5000, 25):
     # plt.imshow(img, alpha=0.5)
     # plt.imshow(final_output, cmap='jet', alpha=0.5)
     # plt.title('Found ' + types[pred] + '  -  Pr = ' + str(np.round(pred_vec[0, pred], 3)))
-
     # DISPLAY IMAGE WITH MASKS
     # plt.subplot(1, 2, 2)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -284,9 +282,7 @@ for k in np.random.randint(0, 5000, 25):
     # plt.imshow(img)
     dice = np.round(dice_coef8(mask, mask0), 3)
     # plt.title('Dice = ' + str(dice) + '  -  ' + IMGS[k] + '  -  ' + types[pred])
-
     # plt.savefig("sgementation_" + str(k) + ".jpg")
-
 '''
 
 
