@@ -23,7 +23,7 @@ def rle2mask(mask_rle, size = (2100, 1400)):
     starts = np.array(mask[::2], dtype = int) - 1
     lengths = np.array(mask[1::2], dtype = int)
     # here dtype
-    img = np.zeros(size[0]*size[1], dtype = int)
+    img = np.zeros(size[0]*size[1], dtype = np.uint8)
     for s, l in zip(starts, lengths):
         img[s:s+l] = np.ones(l)
     return img.reshape(size).T
@@ -51,7 +51,7 @@ def dice_coef(y_rle_true, y_rle_pred, probs, th):
         if y_rle_true=='': return 1
         else: return 0
     y_mask_true = rle2mask(y_rle_true)[::4,::4]
-    y_mask_pred = np.array(Image.fromarray(rle2mask(y_rle_pred,size=(525,350))).resize((525,350)))
+    y_mask_pred = np.array(Image.fromarray(rle2mask(y_rle_pred,size=(525,350))).resize((512,352)))
     union = np.sum(y_mask_true) + np.sum(y_mask_pred)
     # there are not union part in two figures
     if union==0: 
