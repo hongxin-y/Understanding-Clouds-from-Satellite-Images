@@ -24,7 +24,7 @@ IMG_PATH = './train_images/'
 labels = ['fish', 'flower', 'gravel', 'sugar']
 
 # Read Label
-df = pd.read_csv('train.csv').sample(frac=1.)
+df = pd.read_csv('train.csv')
 df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
 df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
 data_df = pd.DataFrame({'Image': df['Image'][::4]})
