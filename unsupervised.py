@@ -242,8 +242,8 @@ if __name__ == "__main__":
     # a new model to generate segmentation figure
     weights = model.layers[-1].get_weights()[0]
     cam = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
-    train_df = generate_segmentation(cam, weights, train_df)
-    validate_df = generate_segmentation(cam, weights, validate_df)
+    # train_df = generate_segmentation(cam, weights, train_df)
+    # validate_df = generate_segmentation(cam, weights, validate_df)
     test_df = generate_segmentation(cam, weights, test_df)
 
     '''
