@@ -162,10 +162,11 @@ def get_rle_probs(cam, weights, image_file, label_idx):
 def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
     th = thresholds
     for img_idx in test_df.index:
+        img_name = IMG_PATH + img_idx + ".jpg"
         # while IMG_LIST[k].split(".")[0] not in test_df.index: k = np.random.randint(0, len(IMG_LIST))
-        img = cv2.resize(cv2.imread(IMG_PATH + img_idx), (512, 352))
+        img = cv2.resize(cv2.imread(img_name), (512, 352))
         for label_idx in [0,1,2,3]:
-            mask_pred, probs = get_rle_probs(cam, weights, IMG_PATH + img_idx, label_idx)
+            mask_pred, probs = get_rle_probs(cam, weights, img_name, label_idx)
             label = LABELS[label_idx]
             rle_true = data_df.loc[img_idx.split('.')[0], "rle_" + label]
             rle_pred = mask2rle((mask_pred > th[label_idx]).astype(int))
@@ -229,6 +230,8 @@ if __name__ == "__main__":
     '''
     
     model = load_model("model.h5")
+    print("Model loading done")
+
     '''
     # evaluation_class
     class_th = 0.5
@@ -245,6 +248,7 @@ if __name__ == "__main__":
     # train_df = generate_segmentation(cam, weights, train_df)
     # validate_df = generate_segmentation(cam, weights, validate_df)
     test_df = generate_segmentation(cam, weights, test_df)
+    print("Model generation done")
 
     '''
     # evaluation final result
