@@ -18,23 +18,26 @@ from keras.optimizers import SGD
 from keras import backend as K
 import os
 
-from utils import mask2rle, dice_coef
+from utils import mask2rle, dice_coef, rle2mask
 
 IMG_PATH = './train_images/'
-labels = ['fish', 'flower', 'gravel', 'sugar']
+LABELS = ['fish', 'flower', 'gravel', 'sugar']
+IMG_LIST = os.listdir(IMG_PATH)
 
-# Read Label
-df = pd.read_csv('train.csv')
-df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
-df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
-data_df = pd.DataFrame({'Image': df['Image'][::4]})
-data_df['rle_fish'] = df['EncodedPixels'][::4].values
-data_df['rle_flower'] = df['EncodedPixels'][1::4].values
-data_df['rle_gravel'] = df['EncodedPixels'][2::4].values
-data_df['rle_sugar'] = df['EncodedPixels'][3::4].values
-data_df.set_index('Image', inplace=True, drop=True)
-data_df.fillna('', inplace=True);
-data_df[['is_fish', 'is_flower', 'is_gravel', 'is_sugar']] = (data_df[['rle_fish', 'rle_flower', 'rle_gravel', 'rle_sugar']] != '').astype('int8')
+def read_data(file_path):
+    # Read Label
+    df = pd.read_csv(file_path)[:1024]
+    df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
+    df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
+    data_df = pd.DataFrame({'Image': df['Image'][::4]})
+    data_df['rle_fish'] = df['EncodedPixels'][::4].values
+    data_df['rle_flower'] = df['EncodedPixels'][1::4].values
+    data_df['rle_gravel'] = df['EncodedPixels'][2::4].values
+    data_df['rle_sugar'] = df['EncodedPixels'][3::4].values
+    data_df.set_index('Image', inplace=True, drop=True)
+    data_df.fillna('', inplace=True);
+    data_df[['is_fish', 'is_flower', 'is_gravel', 'is_sugar']] = (data_df[['rle_fish', 'rle_flower', 'rle_gravel', 'rle_sugar']] != '').astype('int8')
+    return data_df
 
 class DataGenerator(keras.utils.Sequence):
     def __init__(self, id_list, batch_size = 8, width=512, height=352, shuffle=False, mode = "train", path=IMG_PATH, flips=False):
@@ -96,16 +99,13 @@ def evaluation_class(model, test_df, threshold = 0.5):
 
     th = threshold
     log = ""
-    for label in labels:
+    for label in LABELS:
         log += label + ": "
-        #print(label, ': ', end='')
         auc = roc_auc_score(test_df["is_" + label].values, test_df["pred_" + label].values)
         acc = accuracy_score(test_df["is_" + label].values, (test_df["pred_" + label].values > th).astype(int))
         f1 = f1_score(test_df["is_" + label].values, (test_df["pred_" + label].values > th).astype(int))
         log += "AUC = " + str(np.round(auc, 3)) + ", ACC = " + str(np.round(acc, 3)) + ", f1 = " + str(np.round(f1, 3)) + "\n"
-        #print('AUC =', auc, end='')
-        #print(', ACC =', acc, end='')
-        #print('f1 = ', f1)
+
     log += "Overall: "
     auc = roc_auc_score(test_df[['is_fish', 'is_flower', 'is_gravel', 'is_sugar']].values.reshape(-1),\
         test_df[['pred_fish', 'pred_flower', 'pred_gravel', 'pred_sugar']].values.reshape(-1))
@@ -117,60 +117,76 @@ def evaluation_class(model, test_df, threshold = 0.5):
     return log
 
 def evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
-    # evaluation on figures
     log = ""
-    for k, label in enumerate(labels):
+    for k, label in enumerate(LABELS):
         test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_" + label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
         dice = test_df['score_'+ label].mean()
-        #print(label,': Kaggle Dice =',np.around(dice))
-        log += label + ": Kaggle Dice =" + str(np.around(dice, 3))
+        log += label + ": Kaggle Dice =" + str(np.around(dice, 3)) + "\n"
     dice = np.mean( test_df[['score_fish','score_flower','score_gravel','score_sugar']].values )
-    #print("Overall : Kaggle Dice =",np.around(dice))
     log += "Overall : Kaggle Dice =" + str(np.around(dice, 3))
     return log
 
-def generate_segmentation(model, test_df):
-    # a new model to generate segmentation figure
-    weights = model.layers[-1].get_weights()[0]
-    sig = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
-
+def generate_segmentation(cam, weights, test_df):
     test_df.loc[:,'pred_rle_fish'],  test_df.loc[:,'pred_rle_flower'], test_df.loc[:,'pred_rle_gravel'], test_df.loc[:,'pred_rle_sugar'] = "", "", "", ""
     test_df.loc[:,'pred_vec_fish'],  test_df.loc[:,'pred_vec_flower'], test_df.loc[:,'pred_vec_gravel'], test_df.loc[:,'pred_vec_sugar'] = 0, 0, 0, 0
 
     for i, idx in enumerate(test_df.index.values):
-
-        # load image and predict
-        img = cv2.resize(cv2.imread(IMG_PATH + idx + '.jpg'), (512, 352))
-        x = np.array(img)[None,:,:] / 128. - 1.#np.expand_dims(img, axis=0) / 128. - 1.
-        global_pooling_output, pred_vec = sig.predict(x)
-        global_pooling_output = np.squeeze(global_pooling_output)
-
+        img_path = IMG_PATH + idx + '.jpg'
         # calculate 4 masks
-        for k, label in enumerate(labels):
-            channels_weights = weights[:, k]
-            output = np.dot(global_pooling_output.reshape((16 * 11, 2048)), channels_weights).reshape(11, 16)
-            output = scipy.ndimage.zoom(output, (32, 32), order=1)
-
-            # map pixels into [0,1]
-            mx = np.round(np.max(output), 1)
-            mn = np.round(np.min(output), 1)
-            output = (output - mn) / (mx - mn)
-            output = cv2.resize(output, (525, 350))
-            
-            # here use threshold = 0.3
+        for k, label in enumerate(LABELS):
+            output, pred, _ = get_rle_probs(cam, weights, img_path, label_idx = k)
             test_df.loc[idx, "pred_rle_" + label] = mask2rle((output > 0.3).astype(int))
-            test_df.loc[idx, "pred_vec_" + label] = pred_vec[0, k]
-
+            test_df.loc[idx, "pred_vec_" + label] = pred
     return test_df
+
+def get_rle_probs(cam, weights, image_file, label_idx = None):
+    img = cv2.resize(cv2.imread(image_file), (512, 352))
+    x = np.array(img)[None,:,:] / 128. - 1.#np.expand_dims(img, axis=0) / 128. - 1.
+    global_pooling_output, pred_vec = cam.predict(x)
+    global_pooling_output = np.squeeze(global_pooling_output)
+
+    if label_idx == None: label_idx = np.argmax(pred_vec)
+
+    channels_weights = weights[:, label_idx]
+    output = np.dot(global_pooling_output.reshape((16 * 11, 2048)), channels_weights).reshape(11, 16)
+    output = scipy.ndimage.zoom(output, (32, 32), order=1)
+
+    # map pixels into [0,1]
+    mx = np.round(np.max(output), 1)
+    mn = np.round(np.min(output), 1)
+    output = (output - mn) / (mx - mn)
+    output = cv2.resize(output, (525, 350))
+
+    return output, pred_vec[0, label_idx], label_idx
+
+def save_segmentation(num, path):
+    th = 0.3
+    for k in np.random.randint(0, len(IMG_LIST), num):
+        img = cv2.resize(cv2.imread(IMG_PATH + IMG_LIST[k]), (512, 352))
+        mask_pred, probs, label_idx = get_rle_probs(cam, weights, IMG_PATH + IMG_LIST[k], label_idx = None)
+        rle_true = data_df.loc[IMG_LIST[k].split('.')[0], "rle_" + label]
+        rle_pred = mask2rle((mask_pred > th).astype(int))
+        mask_true = rle2mask(rle_true)[::4,::4]
+        label = LABELS[label_idx]
+        plt.imshow(img, alpha=0.5)
+        plt.imshow(mask_true, alpha=0.5)
+        plt.imshow(mask_pred, cmap='jet', alpha=0.5)
+        dice = dice_coef(rle_true, rle_pred, probs, th)
+        print("Dice = " + str(np.round(dice,3)))
+        plt.savefig(IMG_LIST[k] + "_" + label + ".jpg")
+
+data_df = read_data('train.csv')
 
 # split training and test data
 train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
 
 # split validation and training data
-train_idx, validate_idx = train_test_split(train_df.index, random_state=42, test_size=0.2)
+train_df, validate_df = train_test_split(train_df, random_state=42, test_size=0.2)
+train_idx, validate_idx = train_df.index, validate_df.index
 train_gen = DataGenerator(train_idx, flips=True, shuffle=True)
 val_gen = DataGenerator(validate_idx, mode='validate')
 print("Data Generation Done")
+
 
 # Xception pre-train model
 base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
@@ -190,22 +206,29 @@ model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.001), m
 print('Model Building Done')
 
 # train
-h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
 # unfroze the layers and train with lr = 0.0001
-for layer in model.layers: layer.trainable = True
+for layer in model.layers: 
+    layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
 print("Training Done")
 
 np.save("model.npy", model)
 
+# model = np.load("model.npy")
 # evaluation_class
 log = evaluation_class(model, test_df, threshold = 0.5)
 print(log)
 
 # generate sigmentation figure
-test_df = generate_segmentation(model, test_df)
+# a new model to generate segmentation figure
+weights = model.layers[-1].get_weights()[0]
+cam = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
+test_df = generate_segmentation(cam, weights, test_df)
 
 # evaluation final result
 log = evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7])
 print(log)
+
+save_segmentation(25, "./")
