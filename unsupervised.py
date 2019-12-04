@@ -175,7 +175,7 @@ def save_segmentation(num, path):
         plt.imshow(mask_pred, cmap='jet', alpha=0.5)
         dice = dice_coef(rle_true, rle_pred, probs, th)
         print("Dice = " + str(np.round(dice,3)))
-        plt.savefig(IMG_LIST[k] + "_" + label + ".jpg")
+        plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
 
 data_df = read_data('train.csv')
 
