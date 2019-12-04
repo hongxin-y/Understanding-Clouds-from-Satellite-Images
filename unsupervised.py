@@ -121,14 +121,14 @@ def evaluation_class(model, test_df, threshold = 0.5, mode = "testing"):
 def evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7], mode = "testing"):
     log = "Evaluation of " + mode + " data:\n"
     for k, label in enumerate(LABELS):
-        test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_" + label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
+        test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_" + label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k]), axis=1)
         dice = test_df['score_'+ label].mean()
         log += label + ": Kaggle Dice =" + str(np.around(dice, 3)) + "\n"
     dice = np.mean( test_df[['score_fish','score_flower','score_gravel','score_sugar']].values)
     log += "Overall : Kaggle Dice =" + str(np.around(dice, 3)) + "\n"
     return log
 
-def generate_segmentation(cam, weights, test_df):
+def generate_segmentation(cam, weights, test_df, th = 0.3):
     test_df.loc[:,'pred_rle_fish'],  test_df.loc[:,'pred_rle_flower'], test_df.loc[:,'pred_rle_gravel'], test_df.loc[:,'pred_rle_sugar'] = "", "", "", ""
     test_df.loc[:,'pred_vec_fish'],  test_df.loc[:,'pred_vec_flower'], test_df.loc[:,'pred_vec_gravel'], test_df.loc[:,'pred_vec_sugar'] = 0, 0, 0, 0
 
@@ -136,18 +136,16 @@ def generate_segmentation(cam, weights, test_df):
         img_path = IMG_PATH + idx + '.jpg'
         # calculate 4 masks
         for k, label in enumerate(LABELS):
-            output, pred, _ = get_rle_probs(cam, weights, img_path, label_idx = k)
-            test_df.loc[idx, "pred_rle_" + label] = mask2rle((output > 0.3).astype(int))
+            output, pred = get_rle_probs(cam, weights, img_path, k)
+            test_df.loc[idx, "pred_rle_" + label] = mask2rle((output > th).astype(int))
             test_df.loc[idx, "pred_vec_" + label] = pred
     return test_df
 
-def get_rle_probs(cam, weights, image_file, label_idx = None):
+def get_rle_probs(cam, weights, image_file, label_idx):
     img = cv2.resize(cv2.imread(image_file), (512, 352))
     x = np.array(img)[None,:,:] / 128. - 1.#np.expand_dims(img, axis=0) / 128. - 1.
     global_pooling_output, pred_vec = cam.predict(x)
     global_pooling_output = np.squeeze(global_pooling_output)
-
-    if label_idx == None: label_idx = np.argmax(pred_vec)
 
     channels_weights = weights[:, label_idx]
     output = np.dot(global_pooling_output.reshape((16 * 11, 2048)), channels_weights).reshape(11, 16)
@@ -163,32 +161,35 @@ def get_rle_probs(cam, weights, image_file, label_idx = None):
 
 def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
     th = thresholds
-    for k in np.random.randint(0, len(IMG_LIST), num):
-        while IMG_LIST[k].split(".")[0] not in data_df.index: k = np.random.randint(0, len(IMG_LIST))
-        img = cv2.resize(cv2.imread(IMG_PATH + IMG_LIST[k]), (512, 352))
-        mask_pred, probs, label_idx = get_rle_probs(cam, weights, IMG_PATH + IMG_LIST[k], label_idx = None)
-        label = LABELS[label_idx]
-        rle_true = data_df.loc[IMG_LIST[k].split('.')[0], "rle_" + label]
-        rle_pred = mask2rle((mask_pred > th[label_idx]).astype(int))
-        mask_true = rle2mask(rle_true)[::4,::4]
+    for img_idx in test_df.index:
+        # while IMG_LIST[k].split(".")[0] not in test_df.index: k = np.random.randint(0, len(IMG_LIST))
+        img = cv2.resize(cv2.imread(IMG_PATH + img_idx), (512, 352))
+        for label_idx in [0,1,2,3]:
+            mask_pred, probs = get_rle_probs(cam, weights, IMG_PATH + img_idx, label_idx)
+            label = LABELS[label_idx]
+            rle_true = data_df.loc[img_idx.split('.')[0], "rle_" + label]
+            rle_pred = mask2rle((mask_pred > th[label_idx]).astype(int))
+            mask_true = rle2mask(rle_true)[::4,::4]
 
-        # draw picture
-        # plt.imshow(img, alpha=0.5)
-        # plt.imshow(mask_true, alpha=0.5)
-        # plt.imshow(mask_pred, cmap='jet', alpha=0.5)
-        skimage.io.imsave(path + IMG_LIST[k] + "_pred_" + label + ".jpg", (mask_pred > th[label_idx]).astype("uint8")*100)
-        skimage.io.imsave(path + IMG_LIST[k] + "_heat_" + label + ".jpg", (mask_pred*100).astype("uint8"))
-        skimage.io.imsave(path + IMG_LIST[k] + "_true_" + label + ".jpg", mask_true*100)
-        # skimage.io.imsave(path + IMG_LIST[k] + "_orig_" + label + ".jpg", mask_true)
-        dice = dice_coef(rle_true, rle_pred, probs, th[label_idx])
-        print("Dice = " + str(np.round(dice,3)))
-        # plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
+            # draw picture
+            # plt.imshow(img, alpha=0.5)
+            # plt.imshow(mask_true, alpha=0.5)
+            # plt.imshow(mask_pred, cmap='jet', alpha=0.5)
+            skimage.io.imsave(path + img_idx + "_pred_" + label + ".jpg", (mask_pred > th[label_idx]).astype("uint8")*100)
+            skimage.io.imsave(path + img_idx + "_heat_" + label + ".jpg", (mask_pred*100).astype("uint8"))
+            skimage.io.imsave(path + img_idx + "_true_" + label + ".jpg", mask_true*100)
+            # skimage.io.imsave(path + IMG_LIST[k] + "_orig_" + label + ".jpg", mask_true)
+            dice = dice_coef(rle_true, rle_pred, probs, th[label_idx])
+            print("Dice = " + str(np.round(dice,3)))
+            # plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
 
 if __name__ == "__main__":
     data_df = read_data('train.csv')
 
     # split training and test data
-    train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
+    # train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
+    test_length = int(0.2*data_df.shape[0])
+    train_df, test_df = data_df[:test_length], data_df[test_length:]
 
     # split validation and training data
     train_df, validate_df = train_test_split(train_df, random_state=42, test_size=0.2)
@@ -197,7 +198,7 @@ if __name__ == "__main__":
     val_gen = DataGenerator(validate_idx, mode='validate')
     print("Data Generation Done")
 
-    
+    '''
     # Xception pre-train model
     base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
 
@@ -225,14 +226,17 @@ if __name__ == "__main__":
     print("Training Done")
 
     model.save('model.h5')
+    '''
     
-    # model = load_model("model.h5")
+    model = load_model("model.h5")
+    '''
     # evaluation_class
     class_th = 0.5
     log = evaluation_class(model, train_df, threshold = class_th, mode = "training")
     log += evaluation_class(model, validate_df, threshold = class_th, mode = "validate")
     log += evaluation_class(model, test_df, threshold = class_th, mode = "testing")
     print(log)
+    '''
 
     # generate sigmentation figure
     # a new model to generate segmentation figure
@@ -242,12 +246,15 @@ if __name__ == "__main__":
     validate_df = generate_segmentation(cam, weights, validate_df)
     test_df = generate_segmentation(cam, weights, test_df)
 
+    '''
     # evaluation final result
-    segmentation_ths = [0.8,0.5,0.7,0.7]
+    segmentation_ths = [0.5,0.65,0.6,0.7]
     log = evaluation_segmentation(train_df, thresholds = segmentation_ths, mode = "training")
     log += evaluation_segmentation(validate_df, thresholds = segmentation_ths, mode = "validate")
     log += evaluation_segmentation(test_df, thresholds = segmentation_ths, mode = "testing")
     print(log)
+    '''
 
     # save figures
+    segmentation_ths = [0.5,0.65,0.6,0.65]
     save_segmentation(cam, weights, 25, "./", thresholds = segmentation_ths)
