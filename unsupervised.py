@@ -197,7 +197,7 @@ model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), 
 h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
 print("Training Done")
 
-np.save("model.npy")
+np.save("model.npy", model)
 
 # evaluation_class
 log = evaluation_class(model, test_df, threshold = 0.5)
