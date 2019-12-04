@@ -35,16 +35,6 @@ def mask2rle(mask, size = (525, 350)):
     res[1::2] -= res[::2]
     return " ".join(list(map(str, res)))
 
-
-def mask2contour(mask, width=5):
-    w = mask.shape[1]
-    h = mask.shape[0]
-    mask2 = np.concatenate([mask[:,width:],np.zeros((h,width))],axis=1)
-    mask2 = np.logical_xor(mask,mask2)
-    mask3 = np.concatenate([mask[width:,:],np.zeros((width,w))],axis=0)
-    mask3 = np.logical_xor(mask,mask3)
-    return np.logical_or(mask2,mask3)
-
 def dice_coef(y_rle_true, y_rle_pred, probs, th):
     # there is not such label in the figure
     if probs < th:

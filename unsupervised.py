@@ -90,7 +90,7 @@ class DataGenerator(keras.utils.Sequence):
             return X, y
         return X
 
-def evaluation_class(model, test_df, threshold = 0.5):
+def evaluation_class(model, test_df, threshold = 0.5, mode = "testing"):
     # prediction
     pred_gen = DataGenerator(test_df.index, mode='predict')
     predicitions = model.predict_generator(pred_gen, verbose=2)
@@ -98,7 +98,7 @@ def evaluation_class(model, test_df, threshold = 0.5):
     test_df[['pred_fish', 'pred_flower', 'pred_gravel', 'pred_sugar']] = predicitions
 
     th = threshold
-    log = ""
+    log = "Evaluation of " + mode + " data:\n"
     for label in LABELS:
         log += label + ": "
         auc = roc_auc_score(test_df["is_" + label].values, test_df["pred_" + label].values)
@@ -116,14 +116,14 @@ def evaluation_class(model, test_df, threshold = 0.5):
     log += "AUC = " + str(np.round(auc, 3)) + ", ACC = " + str(np.round(acc, 3)) + ", f1 = " + str(np.round(f1, 3)) + "\n"
     return log
 
-def evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
-    log = ""
+def evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7], mode = "testing"):
+    log = "Evaluation of " + mode + " data:\n"
     for k, label in enumerate(LABELS):
         test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_" + label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
         dice = test_df['score_'+ label].mean()
         log += label + ": Kaggle Dice =" + str(np.around(dice, 3)) + "\n"
-    dice = np.mean( test_df[['score_fish','score_flower','score_gravel','score_sugar']].values )
-    log += "Overall : Kaggle Dice =" + str(np.around(dice, 3))
+    dice = np.mean( test_df[['score_fish','score_flower','score_gravel','score_sugar']].values)
+    log += "Overall : Kaggle Dice =" + str(np.around(dice, 3)) + "\n"
     return log
 
 def generate_segmentation(cam, weights, test_df):
@@ -159,7 +159,7 @@ def get_rle_probs(cam, weights, image_file, label_idx = None):
 
     return output, pred_vec[0, label_idx], label_idx
 
-def save_segmentation(num, path):
+def save_segmentation(cam, weights, num, path):
     th = 0.3
     for k in np.random.randint(0, len(IMG_LIST), num):
         img = cv2.resize(cv2.imread(IMG_PATH + IMG_LIST[k]), (512, 352))
@@ -177,60 +177,68 @@ def save_segmentation(num, path):
         print("Dice = " + str(np.round(dice,3)))
         plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
 
-data_df = read_data('train.csv')
+if __name__ == "__main__":
+    data_df = read_data('train.csv')
 
-# split training and test data
-train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
+    # split training and test data
+    train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
 
-# split validation and training data
-train_df, validate_df = train_test_split(train_df, random_state=42, test_size=0.2)
-train_idx, validate_idx = train_df.index, validate_df.index
-train_gen = DataGenerator(train_idx, flips=True, shuffle=True)
-val_gen = DataGenerator(validate_idx, mode='validate')
-print("Data Generation Done")
+    # split validation and training data
+    train_df, validate_df = train_test_split(train_df, random_state=42, test_size=0.2)
+    train_idx, validate_idx = train_df.index, validate_df.index
+    train_gen = DataGenerator(train_idx, flips=True, shuffle=True)
+    val_gen = DataGenerator(validate_idx, mode='validate')
+    print("Data Generation Done")
 
 
-# Xception pre-train model
-base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
+    # Xception pre-train model
+    base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
 
-# freeze non-batchnorm layers
-for layer in base_model.layers:
-    if not isinstance(layer, layers.BatchNormalization): layer.trainable = False
+    # freeze non-batchnorm layers
+    for layer in base_model.layers:
+        if not isinstance(layer, layers.BatchNormalization): layer.trainable = False
 
-# add global average pooling layer
-x = base_model.output
-x = layers.GlobalAveragePooling2D()(x)
-x = layers.Dense(4, activation='sigmoid')(x)
-model = Model(inputs=base_model.input, outputs=x)
+    # add global average pooling layer
+    x = base_model.output
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(4, activation='sigmoid')(x)
+    model = Model(inputs=base_model.input, outputs=x)
 
-# compile and use BCE loss, lr = 0.001
-model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.001), metrics=['accuracy'])
-print('Model Building Done')
+    # compile and use BCE loss, lr = 0.001
+    model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.001), metrics=['accuracy'])
+    print('Model Building Done')
 
-# train
-model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
-# unfroze the layers and train with lr = 0.0001
-for layer in model.layers: 
-    layer.trainable = True
-model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
-print("Training Done")
+    # train
+    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
+    # unfroze the layers and train with lr = 0.0001
+    for layer in model.layers: 
+        layer.trainable = True
+    model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
+    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
+    print("Training Done")
 
-np.save("model.npy", model)
+    np.save("model.npy", model)
 
-# model = np.load("model.npy")
-# evaluation_class
-log = evaluation_class(model, test_df, threshold = 0.5)
-print(log)
+    # model = np.load("model.npy")
+    # evaluation_class
+    class_th = 0.5
+    log = evaluation_class(model, train_df, threshold = class_th, mode = "training")
+    log += evaluation_class(model, validate_df, threshold = class_th, mode = "validate")
+    log += evaluation_class(model, test_df, threshold = class_th, mode = "testing")
+    print(log)
 
-# generate sigmentation figure
-# a new model to generate segmentation figure
-weights = model.layers[-1].get_weights()[0]
-cam = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
-test_df = generate_segmentation(cam, weights, test_df)
+    # generate sigmentation figure
+    # a new model to generate segmentation figure
+    weights = model.layers[-1].get_weights()[0]
+    cam = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
+    test_df = generate_segmentation(cam, weights, test_df)
 
-# evaluation final result
-log = evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7])
-print(log)
+    # evaluation final result
+    segmentation_ths = [0.8,0.5,0.7,0.7]
+    log = evaluation_segmentation(train_df, thresholds = segmentation_ths, mode = "training")
+    log += evaluation_segmentation(validate_df, thresholds = segmentation_ths, mode = "validate")
+    log += evaluation_segmentation(test_df, thresholds = segmentation_ths, mode = "testing")
+    print(log)
 
-save_segmentation(25, "./")
+    # save figures
+    save_segmentation(cam, weights, 25, "./")
