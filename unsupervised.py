@@ -26,7 +26,7 @@ IMG_LIST = os.listdir(IMG_PATH)
 
 def read_data(file_path):
     # Read Label
-    df = pd.read_csv(file_path)[:1024]
+    df = pd.read_csv(file_path)
     df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
     df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
     data_df = pd.DataFrame({'Image': df['Image'][::4]})
@@ -164,10 +164,12 @@ def save_segmentation(num, path):
     for k in np.random.randint(0, len(IMG_LIST), num):
         img = cv2.resize(cv2.imread(IMG_PATH + IMG_LIST[k]), (512, 352))
         mask_pred, probs, label_idx = get_rle_probs(cam, weights, IMG_PATH + IMG_LIST[k], label_idx = None)
+        label = LABELS[label_idx]
         rle_true = data_df.loc[IMG_LIST[k].split('.')[0], "rle_" + label]
         rle_pred = mask2rle((mask_pred > th).astype(int))
         mask_true = rle2mask(rle_true)[::4,::4]
-        label = LABELS[label_idx]
+
+        # draw picture
         plt.imshow(img, alpha=0.5)
         plt.imshow(mask_true, alpha=0.5)
         plt.imshow(mask_pred, cmap='jet', alpha=0.5)
@@ -206,12 +208,12 @@ model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.001), m
 print('Model Building Done')
 
 # train
-model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
 # unfroze the layers and train with lr = 0.0001
 for layer in model.layers: 
     layer.trainable = True
 model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
 print("Training Done")
 
 np.save("model.npy", model)
