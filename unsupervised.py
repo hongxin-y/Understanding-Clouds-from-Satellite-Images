@@ -162,6 +162,7 @@ def get_rle_probs(cam, weights, image_file, label_idx = None):
 def save_segmentation(cam, weights, num, path):
     th = 0.3
     for k in np.random.randint(0, len(IMG_LIST), num):
+        while IMG_LIST[k].split(".")[0] not in data_df.index: k = np.random.randint(0, len(IMG_LIST))
         img = cv2.resize(cv2.imread(IMG_PATH + IMG_LIST[k]), (512, 352))
         mask_pred, probs, label_idx = get_rle_probs(cam, weights, IMG_PATH + IMG_LIST[k], label_idx = None)
         label = LABELS[label_idx]
@@ -231,6 +232,8 @@ if __name__ == "__main__":
     # a new model to generate segmentation figure
     weights = model.layers[-1].get_weights()[0]
     cam = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
+    train_df = generate_segmentation(cam, weights, train_df)
+    validate_df = generate_segmentation(cam, weights, validate_df)
     test_df = generate_segmentation(cam, weights, test_df)
 
     # evaluation final result
