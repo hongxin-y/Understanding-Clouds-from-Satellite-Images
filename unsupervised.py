@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import scipy
 import keras
 import cv2
+import skimage.io
 from PIL import Image
 from keras.applications.xception import Xception
 from keras import backend as K
@@ -16,6 +17,7 @@ from keras.layers import Dense, Dropout, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras import backend as K
+from keras.models import load_model
 import os
 
 from utils import mask2rle, dice_coef, rle2mask
@@ -26,7 +28,7 @@ IMG_LIST = os.listdir(IMG_PATH)
 
 def read_data(file_path):
     # Read Label
-    df = pd.read_csv(file_path)
+    df = pd.read_csv(file_path)[:1024]
     df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
     df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
     data_df = pd.DataFrame({'Image': df['Image'][::4]})
@@ -159,24 +161,28 @@ def get_rle_probs(cam, weights, image_file, label_idx = None):
 
     return output, pred_vec[0, label_idx], label_idx
 
-def save_segmentation(cam, weights, num, path):
-    th = 0.3
+def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
+    th = thresholds
     for k in np.random.randint(0, len(IMG_LIST), num):
         while IMG_LIST[k].split(".")[0] not in data_df.index: k = np.random.randint(0, len(IMG_LIST))
         img = cv2.resize(cv2.imread(IMG_PATH + IMG_LIST[k]), (512, 352))
         mask_pred, probs, label_idx = get_rle_probs(cam, weights, IMG_PATH + IMG_LIST[k], label_idx = None)
         label = LABELS[label_idx]
         rle_true = data_df.loc[IMG_LIST[k].split('.')[0], "rle_" + label]
-        rle_pred = mask2rle((mask_pred > th).astype(int))
+        rle_pred = mask2rle((mask_pred > th[label_idx]).astype(int))
         mask_true = rle2mask(rle_true)[::4,::4]
 
         # draw picture
-        plt.imshow(img, alpha=0.5)
-        plt.imshow(mask_true, alpha=0.5)
-        plt.imshow(mask_pred, cmap='jet', alpha=0.5)
-        dice = dice_coef(rle_true, rle_pred, probs, th)
+        # plt.imshow(img, alpha=0.5)
+        # plt.imshow(mask_true, alpha=0.5)
+        # plt.imshow(mask_pred, cmap='jet', alpha=0.5)
+        skimage.io.imsave(path + IMG_LIST[k] + "_pred_" + label + ".jpg", (mask_pred > th[label_idx]).astype("uint8")*100)
+        skimage.io.imsave(path + IMG_LIST[k] + "_heat_" + label + ".jpg", mask_pred)
+        skimage.io.imsave(path + IMG_LIST[k] + "_true_" + label + ".jpg", mask_true*100)
+        # skimage.io.imsave(path + IMG_LIST[k] + "_orig_" + label + ".jpg", mask_true)
+        dice = dice_coef(rle_true, rle_pred, probs, th[label_idx])
         print("Dice = " + str(np.round(dice,3)))
-        plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
+        # plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
 
 if __name__ == "__main__":
     data_df = read_data('train.csv')
@@ -191,7 +197,7 @@ if __name__ == "__main__":
     val_gen = DataGenerator(validate_idx, mode='validate')
     print("Data Generation Done")
 
-
+    
     # Xception pre-train model
     base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
 
@@ -210,17 +216,17 @@ if __name__ == "__main__":
     print('Model Building Done')
 
     # train
-    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
+    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
     # unfroze the layers and train with lr = 0.0001
     for layer in model.layers: 
         layer.trainable = True
     model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
+    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
     print("Training Done")
 
-    np.save("model.npy", model)
-
-    # model = np.load("model.npy")
+    model.save('model.h5')
+    
+    # model = load_model("model.h5")
     # evaluation_class
     class_th = 0.5
     log = evaluation_class(model, train_df, threshold = class_th, mode = "training")
@@ -244,4 +250,4 @@ if __name__ == "__main__":
     print(log)
 
     # save figures
-    save_segmentation(cam, weights, 25, "./")
+    save_segmentation(cam, weights, 25, "./", thresholds = segmentation_ths)
