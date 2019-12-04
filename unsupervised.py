@@ -116,11 +116,11 @@ def evaluation_class(model, test_df, threshold = 0.5):
     log += "AUC = " + str(np.round(auc, 3)) + ", ACC = " + str(np.round(acc, 3)) + ", f1 = " + str(np.round(f1, 3)) + "\n"
     return log
 
-def evaluation_sigmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
+def evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
     # evaluation on figures
     log = ""
     for k, label in enumerate(labels):
-        test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_"+label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
+        test_df['score_'+ label] = test_df.apply(lambda x:dice_coef(x["rle_" + label],x["pred_rle_" + label],x["pred_vec_" + label],thresholds[k-1]), axis=1)
         dice = test_df['score_'+ label].mean()
         #print(label,': Kaggle Dice =',np.around(dice))
         log += label + ": Kaggle Dice =" + str(np.around(dice, 3))
@@ -129,7 +129,7 @@ def evaluation_sigmentation(test_df, thresholds = [0.8,0.5,0.7,0.7]):
     log += "Overall : Kaggle Dice =" + str(np.around(dice, 3))
     return log
 
-def generate_sigmentation(model, test_df):
+def generate_segmentation(model, test_df):
     # a new model to generate segmentation figure
     weights = model.layers[-1].get_weights()[0]
     sig = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
@@ -197,13 +197,15 @@ model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), 
 h = model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
 print("Training Done")
 
+np.save("model.npy")
+
 # evaluation_class
 log = evaluation_class(model, test_df, threshold = 0.5)
 print(log)
 
 # generate sigmentation figure
-test_df = generate_sigmentation(model, test_df)
+test_df = generate_segmentation(model, test_df)
 
 # evaluation final result
-log = evaluation_sigmentation(test_df, thresholds = [0.8,0.5,0.7,0.7])
+log = evaluation_segmentation(test_df, thresholds = [0.8,0.5,0.7,0.7])
 print(log)

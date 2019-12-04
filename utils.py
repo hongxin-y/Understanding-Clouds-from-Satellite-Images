@@ -51,7 +51,7 @@ def dice_coef(y_rle_true, y_rle_pred, probs, th):
         if y_rle_true=='': return 1
         else: return 0
     y_mask_true = rle2mask(y_rle_true)[::4,::4]
-    y_mask_pred = np.array(Image.fromarray(rle2mask(y_rle_pred,size=(525,350))).resize((512,352)))
+    y_mask_pred = np.array(Image.fromarray(rle2mask(y_rle_pred,size=(525,350))))
     union = np.sum(y_mask_true) + np.sum(y_mask_pred)
     # there are not union part in two figures
     if union==0: 
