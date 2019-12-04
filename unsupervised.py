@@ -188,8 +188,8 @@ if __name__ == "__main__":
 
     # split training and test data
     # train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
-    test_length = int(0.2*data_df.shape[0])
-    train_df, test_df = data_df[:test_length], data_df[test_length:]
+    train_length = int(0.8*data_df.shape[0])
+    train_df, test_df = data_df[:train_length], data_df[train_length:]
 
     # split validation and training data
     train_df, validate_df = train_test_split(train_df, random_state=42, test_size=0.2)
