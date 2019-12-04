@@ -28,7 +28,7 @@ IMG_LIST = os.listdir(IMG_PATH)
 
 def read_data(file_path):
     # Read Label
-    df = pd.read_csv(file_path)[:1024]
+    df = pd.read_csv(file_path)
     df['Image'] = df['Image_Label'].map(lambda x: x.split('.')[0])
     df['Label'] = df['Image_Label'].map(lambda x: x.split('_')[1])
     data_df = pd.DataFrame({'Image': df['Image'][::4]})
@@ -177,7 +177,7 @@ def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
         # plt.imshow(mask_true, alpha=0.5)
         # plt.imshow(mask_pred, cmap='jet', alpha=0.5)
         skimage.io.imsave(path + IMG_LIST[k] + "_pred_" + label + ".jpg", (mask_pred > th[label_idx]).astype("uint8")*100)
-        skimage.io.imsave(path + IMG_LIST[k] + "_heat_" + label + ".jpg", mask_pred)
+        skimage.io.imsave(path + IMG_LIST[k] + "_heat_" + label + ".jpg", (mask_pred*100).astype("uint8"))
         skimage.io.imsave(path + IMG_LIST[k] + "_true_" + label + ".jpg", mask_true*100)
         # skimage.io.imsave(path + IMG_LIST[k] + "_orig_" + label + ".jpg", mask_true)
         dice = dice_coef(rle_true, rle_pred, probs, th[label_idx])
@@ -216,12 +216,12 @@ if __name__ == "__main__":
     print('Model Building Done')
 
     # train
-    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
     # unfroze the layers and train with lr = 0.0001
     for layer in model.layers: 
         layer.trainable = True
     model.compile(loss='binary_crossentropy', optimizer=optimizers.Adam(lr=0.0001), metrics=['accuracy'])
-    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = 1)
+    model.fit_generator(train_gen, epochs=2, verbose=2, validation_data=val_gen, steps_per_epoch = None)
     print("Training Done")
 
     model.save('model.h5')
