@@ -157,7 +157,7 @@ def get_rle_probs(cam, weights, image_file, label_idx):
     output = (output - mn) / (mx - mn)
     output = cv2.resize(output, (525, 350))
 
-    return output, pred_vec[0, label_idx], label_idx
+    return output, pred_vec[0, label_idx]
 
 def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
     th = thresholds
