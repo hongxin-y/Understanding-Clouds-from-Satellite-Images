@@ -172,23 +172,15 @@ def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
             rle_pred = mask2rle((mask_pred > th[label_idx]).astype(int))
             mask_true = rle2mask(rle_true)[::4,::4]
 
-            # draw picture
-            # plt.imshow(img, alpha=0.5)
-            # plt.imshow(mask_true, alpha=0.5)
-            # plt.imshow(mask_pred, cmap='jet', alpha=0.5)
             skimage.io.imsave(path + img_idx + "_pred_" + label + ".jpg", (mask_pred > th[label_idx]).astype("uint8")*100)
             skimage.io.imsave(path + img_idx + "_heat_" + label + ".jpg", (mask_pred*100).astype("uint8"))
-            skimage.io.imsave(path + img_idx + "_true_" + label + ".jpg", mask_true*100)
-            # skimage.io.imsave(path + IMG_LIST[k] + "_orig_" + label + ".jpg", mask_true)
+            skimage.io.imsave(path + img_idx + "_true_" + label + ".jpg", mask_true*100)e)
             dice = dice_coef(rle_true, rle_pred, probs, th[label_idx])
             print("Dice = " + str(np.round(dice,3)))
-            # plt.savefig(path + IMG_LIST[k] + "_" + label + ".jpg")
 
 if __name__ == "__main__":
     data_df = read_data('train.csv')
 
-    # split training and test data
-    # train_df, test_df = train_test_split(data_df, random_state=42, test_size=0.1)
     train_length = int(0.8*data_df.shape[0])
     train_df, test_df = data_df[:train_length], data_df[train_length:]
 
@@ -199,7 +191,7 @@ if __name__ == "__main__":
     val_gen = DataGenerator(validate_idx, mode='validate')
     print("Data Generation Done")
 
-    '''
+    
     # Xception pre-train model
     base_model = Xception(weights='imagenet', include_top=False, input_shape=(None, None, 3))
 
@@ -227,37 +219,37 @@ if __name__ == "__main__":
     print("Training Done")
 
     model.save('model.h5')
-    '''
     
-    model = load_model("model.h5")
+    
+    # model = load_model("model.h5")
     print("Model loading done")
 
-    '''
+    
     # evaluation_class
     class_th = 0.5
     log = evaluation_class(model, train_df, threshold = class_th, mode = "training")
     log += evaluation_class(model, validate_df, threshold = class_th, mode = "validate")
     log += evaluation_class(model, test_df, threshold = class_th, mode = "testing")
     print(log)
-    '''
+    
 
     # generate sigmentation figure
     # a new model to generate segmentation figure
     weights = model.layers[-1].get_weights()[0]
     cam = Model(inputs=model.input, outputs=(model.layers[-3].output, model.layers[-1].output))
-    # train_df = generate_segmentation(cam, weights, train_df)
-    # validate_df = generate_segmentation(cam, weights, validate_df)
+    train_df = generate_segmentation(cam, weights, train_df)
+    validate_df = generate_segmentation(cam, weights, validate_df)
     test_df = generate_segmentation(cam, weights, test_df)
     print("Model generation done")
 
-    '''
+    
     # evaluation final result
     segmentation_ths = [0.5,0.65,0.6,0.7]
     log = evaluation_segmentation(train_df, thresholds = segmentation_ths, mode = "training")
     log += evaluation_segmentation(validate_df, thresholds = segmentation_ths, mode = "validate")
     log += evaluation_segmentation(test_df, thresholds = segmentation_ths, mode = "testing")
     print(log)
-    '''
+    
 
     # save figures
     segmentation_ths = [0.5,0.65,0.6,0.65]
