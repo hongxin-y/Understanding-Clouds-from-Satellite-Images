@@ -1,3 +1,8 @@
+'''
+The code in this file is a self-implemented encapsulation and changed form of original code from
+https://www.kaggle.com/cdeotte/unsupervised-masks-cv-0-60
+'''
+
 import tensorflow as tf
 import pandas as pd
 import numpy as np
