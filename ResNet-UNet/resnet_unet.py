@@ -3,6 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 
+'''
+    reconstruct from https://github.com/belkinmuj/ds/blob/0190c8aaa37299c9bf17dcc2a9295cb9b6797811/resnet50_unet.py
+    also changed the input channel, output channel and add a global max pool in the last layer to do classification.
+'''
+
 class Block(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()

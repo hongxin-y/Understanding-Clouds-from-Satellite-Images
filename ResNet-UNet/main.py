@@ -1,4 +1,4 @@
-from model import UNetWithResnet50Encoder, criterion
+from UNet import Model, criterion
 from utils import ImageDataset, printMask0
 from torch import nn, optim
 from torchvision.transforms import transforms
@@ -9,7 +9,11 @@ import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def train_model(model, criterion, optimizer, train_dataloader, test_dataloader, num_epochs=30):
+    '''
+        The format of print output is referenced from https://github.com/JavisPeng/u_net_liver/blob/master/main.py
+    '''
     model.train()
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -87,7 +91,7 @@ def test_model(model, criterion, test_dataloader, print_out = False):
 
 
 def train():
-    model = UNetWithResnet50Encoder().to(device)
+    model = Model().to(device)
     optimizer = optim.Adam(model.parameters())
 
     x_transforms = transforms.Compose([
@@ -108,7 +112,7 @@ def train():
 
 def test():
     checkpoint = torch.load("./checkpoint/model_6_epoch.pth")
-    model = UNetWithResnet50Encoder().to(device)
+    model = Model().to(device)
     model.load_state_dict(checkpoint['net'])
     x_transforms = transforms.Compose([
         transforms.ToTensor(),
