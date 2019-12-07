@@ -179,7 +179,7 @@ def save_segmentation(cam, weights, num, path, thresholds = [0.8,0.5,0.7,0.7]):
 
             skimage.io.imsave(path + img_idx + "_pred_" + label + ".jpg", (mask_pred > th[label_idx]).astype("uint8")*100)
             skimage.io.imsave(path + img_idx + "_heat_" + label + ".jpg", (mask_pred*100).astype("uint8"))
-            skimage.io.imsave(path + img_idx + "_true_" + label + ".jpg", mask_true*100)e)
+            skimage.io.imsave(path + img_idx + "_true_" + label + ".jpg", mask_true*100)
             dice = dice_coef(rle_true, rle_pred, probs, th[label_idx])
             print("Dice = " + str(np.round(dice,3)))
 
